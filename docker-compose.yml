@@ -1,0 +1,15 @@
+services:
+  pqtls-server:
+    image: pqtls-middleware
+    container_name: pqtls-server
+
+    ports:
+      - "5000:5000"
+
+    volumes:
+      - ./certs:/app/certs:ro
+
+    env_file:
+      - .env
+
+    restart: unless-stopped
