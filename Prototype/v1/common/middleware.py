@@ -52,6 +52,10 @@ from common.relay import (
     relay_secure_to_backend
 )
 
+from common.dashboard import (
+    get_dashboard
+)
+
 from common.config import (
     BACKEND_HOST,
     BACKEND_PORT,
@@ -1951,7 +1955,8 @@ def handle_gateway_client(
     backend_use_tls=False,
     backend_connect_timeout=
         BACKEND_CONNECT_TIMEOUT,
-    idle_timeout=DEFAULT_PROXY_IDLE_TIMEOUT
+    idle_timeout=DEFAULT_PROXY_IDLE_TIMEOUT,
+    conn_id=None
 ):
     """
     PQ-terminate one client, dial backend,
@@ -1962,8 +1967,12 @@ def handle_gateway_client(
         f"GATEWAY_{addr[0]}_{addr[1]}"
     )
 
+    dashboard = get_dashboard()
+
     session = None
     backend_sock = None
+    close_status = "closed"
+    close_error = None
 
     try:
 
@@ -1994,6 +2003,13 @@ def handle_gateway_client(
             f"{tls_duration_ms:.4f} ms"
         )
 
+        if conn_id:
+            dashboard.update_stage(
+                conn_id,
+                "tls_established",
+                {"duration_ms": round(tls_duration_ms, 2)}
+            )
+
         # =====================================
         # PQ SESSION WITH CLIENT
         # =====================================
@@ -2006,6 +2022,13 @@ def handle_gateway_client(
             tls_handshake_start=
                 tls_start
         )
+
+        if conn_id:
+            dashboard.update_stage(
+                conn_id,
+                "pq_handshake_complete",
+                {"kem": "ML-KEM-768", "sig": "ML-DSA-65"}
+            )
 
         # =====================================
         # DIAL BACKEND
@@ -2030,6 +2053,17 @@ def handle_gateway_client(
             "starting relay"
         )
 
+        if conn_id:
+            dashboard.update_stage(
+                conn_id,
+                "backend_connected",
+                {"backend": f"{backend_host}:{backend_port}"}
+            )
+            dashboard.update_stage(
+                conn_id,
+                "relaying"
+            )
+
         # =====================================
         # BIDIRECTIONAL RELAY
         # =====================================
@@ -2039,7 +2073,9 @@ def handle_gateway_client(
             backend_sock=backend_sock,
             logger=logger,
             metrics=session.metrics,
-            idle_timeout=idle_timeout
+            idle_timeout=idle_timeout,
+            conn_id=conn_id,
+            dashboard=dashboard
         )
 
     except ConnectionError as exc:
@@ -2049,12 +2085,18 @@ def handle_gateway_client(
             f"{addr} - {exc}"
         )
 
+        close_status = "disconnected"
+        close_error = str(exc)
+
     except Exception as exc:
 
         logger.error(
             f"Gateway client error "
             f"{addr}: {exc}"
         )
+
+        close_status = "error"
+        close_error = str(exc)
 
         if (
             session is not None
@@ -2081,6 +2123,13 @@ def handle_gateway_client(
             logger.info(
                 f"Metrics Summary: "
                 f"{session.metrics.summary()}"
+            )
+
+        if conn_id:
+            dashboard.close_connection(
+                conn_id,
+                status=close_status,
+                error=close_error
             )
 
         _safe_close(
@@ -2272,6 +2321,18 @@ def run_secure_gateway(
 
                 raw_client_socket = None
 
+                conn_id = (
+                    f"{addr[0]}:{addr[1]}:"
+                    f"{time.time_ns()}"
+                )
+
+                get_dashboard().register_connection(
+                    conn_id,
+                    addr,
+                    backend_host=backend_host,
+                    backend_port=backend_port
+                )
+
                 thread = threading.Thread(
                     target=
                         handle_gateway_client,
@@ -2284,7 +2345,8 @@ def run_secure_gateway(
                         backend_port,
                         backend_use_tls,
                         backend_connect_timeout,
-                        idle_timeout
+                        idle_timeout,
+                        conn_id
                     ),
 
                     daemon=True,

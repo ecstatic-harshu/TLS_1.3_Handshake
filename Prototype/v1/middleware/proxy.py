@@ -5,13 +5,21 @@ from common.config import (
     BACKEND_PORT,
     BACKEND_USE_TLS,
     BACKEND_CONNECT_TIMEOUT,
-    PROXY_IDLE_TIMEOUT
+    PROXY_IDLE_TIMEOUT,
+    DASHBOARD_ENABLED,
+    DASHBOARD_HOST,
+    DASHBOARD_PORT
 )
 
 from common.version import get_version
 
 from common.middleware import (
     run_secure_gateway
+)
+
+from common.dashboard import (
+    get_dashboard,
+    start_dashboard_server
 )
 
 
@@ -36,7 +44,10 @@ def run_proxy(
     backend_port=BACKEND_PORT,
     backend_use_tls=BACKEND_USE_TLS,
     backend_connect_timeout=BACKEND_CONNECT_TIMEOUT,
-    idle_timeout=PROXY_IDLE_TIMEOUT
+    idle_timeout=PROXY_IDLE_TIMEOUT,
+    dashboard_enabled=DASHBOARD_ENABLED,
+    dashboard_host=DASHBOARD_HOST,
+    dashboard_port=DASHBOARD_PORT
 ):
 
     print_banner()
@@ -55,6 +66,19 @@ def run_proxy(
         f"         Idle timeout : "
         f"{idle_timeout}s"
     )
+
+    if dashboard_enabled:
+
+        start_dashboard_server(
+            get_dashboard(),
+            host=dashboard_host,
+            port=dashboard_port
+        )
+
+        print(
+            f"         Dashboard : "
+            f"http://{dashboard_host}:{dashboard_port}"
+        )
 
     print("\n[PROXY] Starting gateway...\n")
 

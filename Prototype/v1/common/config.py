@@ -63,3 +63,34 @@ PROXY_IDLE_TIMEOUT = float(
         "60.0"
     )
 )
+
+# =====================================
+# LIVE DEMO DASHBOARD (proxy mode only)
+# =====================================
+# Localhost-only by default -- this is demo
+# instrumentation, not meant to be exposed.
+
+DASHBOARD_ENABLED = (
+    os.getenv(
+        "DASHBOARD_ENABLED",
+        "true"
+    ).strip().lower()
+    in (
+        "1",
+        "true",
+        "yes",
+        "on"
+    )
+)
+
+DASHBOARD_HOST = os.getenv(
+    "DASHBOARD_HOST",
+    "127.0.0.1"
+)
+
+DASHBOARD_PORT = int(
+    os.getenv(
+        "DASHBOARD_PORT",
+        "8090"
+    )
+)

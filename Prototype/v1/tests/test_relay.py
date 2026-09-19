@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 import unittest
 
 from common.relay import relay_secure_to_backend
@@ -98,10 +99,12 @@ class RelayTests(unittest.TestCase):
         )
 
         # Allow backend→client pump to deliver.
+        # (responded is already set here, so waiting on it again would
+        # return immediately -- use a real sleep to poll for delivery.)
         for _ in range(50):
             if session.sent:
                 break
-            responded.wait(0.05)
+            time.sleep(0.05)
 
         # Close client leg to stop the relay.
         try:

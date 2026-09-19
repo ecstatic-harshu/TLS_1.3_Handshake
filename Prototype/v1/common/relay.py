@@ -11,7 +11,9 @@ def relay_secure_to_backend(
     logger=None,
     metrics=None,
     idle_timeout=None,
-    recv_size=DEFAULT_BACKEND_RECV_SIZE
+    recv_size=DEFAULT_BACKEND_RECV_SIZE,
+    conn_id=None,
+    dashboard=None
 ):
     """
     Bidirectional terminate-and-reissue relay.
@@ -54,6 +56,12 @@ def relay_secure_to_backend(
             return
 
         metrics.record(label, metadata or {})
+
+    def _report_bytes(direction, n):
+        if dashboard is None or conn_id is None:
+            return
+
+        dashboard.add_bytes(conn_id, direction, n)
 
     def _shutdown():
         if stop_event.is_set():
@@ -163,6 +171,9 @@ def relay_secure_to_backend(
                     "RELAY_CLIENT_TO_BACKEND",
                     {"bytes": len(chunk)}
                 )
+                _report_bytes(
+                    "client_to_backend", len(chunk)
+                )
 
         finally:
             _shutdown()
@@ -221,6 +232,9 @@ def relay_secure_to_backend(
                 _record(
                     "RELAY_BACKEND_TO_CLIENT",
                     {"bytes": len(chunk)}
+                )
+                _report_bytes(
+                    "backend_to_client", len(chunk)
                 )
 
         finally:

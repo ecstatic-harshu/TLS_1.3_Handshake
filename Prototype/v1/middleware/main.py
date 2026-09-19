@@ -7,7 +7,10 @@ from common.config import (
     BACKEND_PORT,
     BACKEND_USE_TLS,
     BACKEND_CONNECT_TIMEOUT,
-    PROXY_IDLE_TIMEOUT
+    PROXY_IDLE_TIMEOUT,
+    DASHBOARD_ENABLED,
+    DASHBOARD_HOST,
+    DASHBOARD_PORT
 )
 
 from client.client import run_client
@@ -131,6 +134,35 @@ def parse_args():
         )
     )
 
+    parser.add_argument(
+        "--dashboard",
+        action=argparse.BooleanOptionalAction,
+        default=DASHBOARD_ENABLED,
+        help=(
+            "Serve/do not serve the live local demo "
+            f"dashboard in proxy mode (default: {DASHBOARD_ENABLED})"
+        )
+    )
+
+    parser.add_argument(
+        "--dashboard-host",
+        default=DASHBOARD_HOST,
+        help=(
+            "Dashboard bind host "
+            f"(default: {DASHBOARD_HOST})"
+        )
+    )
+
+    parser.add_argument(
+        "--dashboard-port",
+        type=int,
+        default=DASHBOARD_PORT,
+        help=(
+            "Dashboard port "
+            f"(default: {DASHBOARD_PORT})"
+        )
+    )
+
     # ---------------------------------
     # CLIENT OPTIONS
     # ---------------------------------
@@ -229,7 +261,10 @@ def main():
                 backend_use_tls=args.backend_tls,
                 backend_connect_timeout=
                     args.backend_connect_timeout,
-                idle_timeout=args.idle_timeout
+                idle_timeout=args.idle_timeout,
+                dashboard_enabled=args.dashboard,
+                dashboard_host=args.dashboard_host,
+                dashboard_port=args.dashboard_port
             )
         except KeyboardInterrupt:
             print(
