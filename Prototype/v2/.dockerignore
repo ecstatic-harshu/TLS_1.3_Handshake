@@ -1,0 +1,12 @@
+venv/
+.git/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.env
+
+tests/
+
+liboqs/build/
