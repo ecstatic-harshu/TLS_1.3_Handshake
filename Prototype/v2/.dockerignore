@@ -1,5 +1,6 @@
 venv/
 .git/
+**/.git/
 .vscode/
 __pycache__/
 *.pyc
