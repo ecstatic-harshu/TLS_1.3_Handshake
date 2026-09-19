@@ -49,6 +49,21 @@ IMAGE_TAG = os.environ.get("PQTLS_IMAGE", "pqtls-middleware:1.0.0")
 PROXY_CONTAINER = os.environ.get("PROXY_CONTAINER", "pqtls-proxy-demo")
 
 
+def _env_flag(name, default=True):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in ("0", "false", "no", "off")
+
+
+# When false, the dashboard assumes the backend / proxy are already
+# running elsewhere (another terminal) and only serves the UI +
+# tails/log-classifies whatever it finds, instead of spawning and
+# later tearing them down itself.
+MANAGE_BACKEND = _env_flag("MANAGE_BACKEND", True)
+MANAGE_PROXY = _env_flag("MANAGE_PROXY", True)
+
+
 # =====================================
 # EVENT BUS (SSE fan-out)
 # =====================================
@@ -218,6 +233,31 @@ def ensure_image_exists():
         sys.exit(1)
 
 
+def proxy_container_exists():
+    result = docker(
+        "inspect", PROXY_CONTAINER,
+        capture_output=True, text=True
+    )
+    return result.returncode == 0
+
+
+def attach_proxy_logs():
+    """Tail an already-running proxy container's logs (does not start it)."""
+    proc = subprocess.Popen(
+        ["docker", "logs", "-f", PROXY_CONTAINER],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+    procs["proxy_logs"] = proc
+    threading.Thread(
+        target=tail_stream,
+        args=(proc.stdout, "proxy"),
+        daemon=True
+    ).start()
+
+
 def start_proxy_container():
     docker("rm", "-f", PROXY_CONTAINER, capture_output=True, text=True)
 
@@ -240,19 +280,7 @@ def start_proxy_container():
             f"Failed to start proxy container: {result.stderr.strip()}"
         )
 
-    proc = subprocess.Popen(
-        ["docker", "logs", "-f", PROXY_CONTAINER],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1
-    )
-    procs["proxy_logs"] = proc
-    threading.Thread(
-        target=tail_stream,
-        args=(proc.stdout, "proxy"),
-        daemon=True
-    ).start()
+    attach_proxy_logs()
 
 
 def wait_for_port(host, port, timeout=30):
@@ -352,7 +380,8 @@ def cleanup():
         except Exception:
             pass
 
-    docker("rm", "-f", PROXY_CONTAINER, capture_output=True, text=True)
+    if MANAGE_PROXY:
+        docker("rm", "-f", PROXY_CONTAINER, capture_output=True, text=True)
 
     print("[DASHBOARD] Stopped")
 
@@ -474,6 +503,23 @@ class Handler(BaseHTTPRequestHandler):
 # MAIN
 # =====================================
 
+def _port_open(host, port):
+    try:
+        with socket.create_connection((host, port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+def health_watch():
+    """Keep /status accurate regardless of who started backend/proxy,
+    including services that come up after the dashboard does."""
+    while True:
+        state["backend"] = "online" if _port_open("127.0.0.1", BACKEND_PORT) else "offline"
+        state["proxy"] = "online" if _port_open("127.0.0.1", PROXY_PORT) else "offline"
+        time.sleep(3)
+
+
 def main():
 
     atexit.register(cleanup)
@@ -483,27 +529,53 @@ def main():
 
     signal.signal(signal.SIGTERM, _handle_sigterm)
 
+    # Always required: "Send Secure Message" spawns a throwaway client
+    # container from this image regardless of who manages backend/proxy.
     ensure_image_exists()
 
-    print("[DASHBOARD] Starting demo HTTP backend...")
-    start_backend()
+    if MANAGE_BACKEND:
+        print("[DASHBOARD] Starting demo HTTP backend...")
+        start_backend()
 
-    if not wait_for_port("127.0.0.1", BACKEND_PORT, timeout=15):
-        print(f"[DASHBOARD] ERROR: backend did not come up on port {BACKEND_PORT}")
-        sys.exit(1)
+        if not wait_for_port("127.0.0.1", BACKEND_PORT, timeout=15):
+            print(f"[DASHBOARD] ERROR: backend did not come up on port {BACKEND_PORT}")
+            sys.exit(1)
 
-    state["backend"] = "online"
-    print(f"[DASHBOARD] Backend online on port {BACKEND_PORT}")
+        print(f"[DASHBOARD] Backend online on port {BACKEND_PORT}")
+    else:
+        print(
+            f"[DASHBOARD] MANAGE_BACKEND=0 — expecting backend already "
+            f"running on port {BACKEND_PORT} (won't start or stop it)"
+        )
 
-    print("[DASHBOARD] Starting proxy container...")
-    start_proxy_container()
+    if MANAGE_PROXY:
+        print("[DASHBOARD] Starting proxy container...")
+        start_proxy_container()
 
-    if not wait_for_port("127.0.0.1", PROXY_PORT, timeout=30):
-        print(f"[DASHBOARD] ERROR: proxy did not come up on port {PROXY_PORT}")
-        sys.exit(1)
+        if not wait_for_port("127.0.0.1", PROXY_PORT, timeout=30):
+            print(f"[DASHBOARD] ERROR: proxy did not come up on port {PROXY_PORT}")
+            sys.exit(1)
 
-    state["proxy"] = "online"
-    print(f"[DASHBOARD] Proxy online on port {PROXY_PORT}")
+        print(f"[DASHBOARD] Proxy online on port {PROXY_PORT}")
+    else:
+        print(
+            f"[DASHBOARD] MANAGE_PROXY=0 — expecting proxy already "
+            f"running on port {PROXY_PORT} (won't start or stop it)"
+        )
+
+        if proxy_container_exists():
+            print(f"[DASHBOARD] Found container '{PROXY_CONTAINER}', attaching to its logs")
+            attach_proxy_logs()
+        else:
+            print(
+                f"[DASHBOARD] No container named '{PROXY_CONTAINER}' found — "
+                f"live proxy/backend log stages won't show up, but sending "
+                f"messages still works as long as the proxy is reachable.\n"
+                f"            Set PROXY_CONTAINER to match your container's "
+                f"name to enable log tailing."
+            )
+
+    threading.Thread(target=health_watch, daemon=True).start()
 
     url = f"http://{DASHBOARD_HOST}:{DASHBOARD_PORT}"
 
