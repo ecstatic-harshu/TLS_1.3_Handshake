@@ -1,0 +1,37 @@
+services:
+  pqtls-server:
+    image: pqtls-middleware
+    container_name: pqtls-server
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./certs:/app/certs:ro
+    env_file:
+      - .env
+    restart: unless-stopped
+    command: ["--mode", "server"]
+
+  pqtls-proxy:
+    image: pqtls-middleware
+    container_name: pqtls-proxy
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./certs:/app/certs:ro
+    env_file:
+      - .env
+    environment:
+      BACKEND_HOST: host.docker.internal
+      BACKEND_PORT: "8080"
+      BACKEND_USE_TLS: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    command:
+      [
+        "--mode", "proxy",
+        "--backend-host", "host.docker.internal",
+        "--backend-port", "8080"
+      ]
+    profiles:
+      - proxy
