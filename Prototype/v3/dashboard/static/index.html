@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quantum-Safe Proxy — Live Demo</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div>
+        <h1>Quantum-Safe Proxy</h1>
+        <p>Live behind-the-scenes demo</p>
+      </div>
+    </div>
+    <div class="badges" id="badges" aria-label="Security stack — click a badge for details">
+      <button type="button" class="badge" data-tip="tls" title="Click for details">TLS 1.3</button>
+      <button type="button" class="badge" data-tip="kem" title="Click for details">ML-KEM-768</button>
+      <button type="button" class="badge" data-tip="dsa" title="Click for details">ML-DSA-65</button>
+      <button type="button" class="badge" data-tip="hkdf" title="Click for details">HKDF-SHA256</button>
+      <button type="button" class="badge" data-tip="aes" title="Click for details">AES-256-GCM</button>
+    </div>
+  </header>
+
+  <div class="tip-banner" id="tip-banner" hidden>
+    <strong id="tip-title"></strong>
+    <span id="tip-body"></span>
+    <button type="button" class="tip-close" id="tip-close" aria-label="Close tip">×</button>
+  </div>
+
+  <main class="layout">
+    <!-- LEFT: topology + send -->
+    <section class="panel left">
+      <div class="panel-head">
+        <h2 class="panel-title">Path of a message</h2>
+        <div class="topo-actions">
+          <button type="button" id="preview-path" class="ghost" title="Animate the full path without sending">Preview path</button>
+        </div>
+      </div>
+      <p class="panel-hint">Click a node or channel to inspect it. Preview animates Client → Proxy → Server → back.</p>
+
+      <div class="topology" id="topology" data-flow="idle">
+        <button type="button" class="node" id="node-client" data-role="client" aria-pressed="false">
+          <div class="node-icon client" aria-hidden="true">💻</div>
+          <strong>Client App</strong>
+          <span>You / the customer</span>
+        </button>
+
+        <button type="button" class="link pq" id="link-pq" data-role="link-client" aria-label="Client to proxy PQ channel">
+          <span class="link-track">
+            <span class="packet down"></span>
+            <span class="packet up"></span>
+          </span>
+          <span class="link-label">Post-Quantum Encrypted Channel 🔒</span>
+          <span class="flow-caption" id="caption-pq"></span>
+        </button>
+
+        <button type="button" class="node" id="node-proxy" data-role="proxy" aria-pressed="false">
+          <div class="node-icon proxy" aria-hidden="true">🛡️</div>
+          <strong>Secure Proxy</strong>
+          <span>Terminates client PQ session, opens PQ hop to server</span>
+        </button>
+
+        <button type="button" class="link pq hop" id="link-backend" data-role="link-server" aria-label="Proxy to server PQ hop">
+          <span class="link-track">
+            <span class="packet down"></span>
+            <span class="packet up"></span>
+          </span>
+          <span class="link-label">PQ Secure Hop (proxy ↔ server) 🔒</span>
+          <span class="flow-caption" id="caption-backend"></span>
+        </button>
+
+        <button type="button" class="node" id="node-backend" data-role="backend" aria-pressed="false">
+          <div class="node-icon backend" aria-hidden="true">🖥️</div>
+          <strong>PQ Secure Server</strong>
+          <span>Speaks the same PQ protocol (--mode server)</span>
+        </button>
+      </div>
+
+      <div class="inspect" id="inspect" hidden>
+        <div class="inspect-head">
+          <strong id="inspect-title">Inspect</strong>
+          <button type="button" class="tip-close" id="inspect-close" aria-label="Close">×</button>
+        </div>
+        <p id="inspect-body"></p>
+      </div>
+
+      <p class="flow-status" id="flow-status">Idle — send a message to watch packets move.</p>
+
+      <div class="status-row">
+        <button type="button" class="status-pill" id="status-backend" title="Click to focus PQ server">
+          <span class="dot"></span> PQ Server
+        </button>
+        <button type="button" class="status-pill" id="status-proxy" title="Click to focus proxy">
+          <span class="dot"></span> Proxy
+        </button>
+      </div>
+
+      <div class="send-card">
+        <h3>Send a message through the secure proxy</h3>
+        <div class="chips" id="chips">
+          <button type="button" data-msg="Hello, secure world!">Hello, secure world!</button>
+          <button type="button" data-msg="Transfer $500 to account 8841">Transfer $500 to account 8841</button>
+          <button type="button" data-msg="Login: admin">Login: admin</button>
+        </div>
+        <label class="sr-only" for="message">Message</label>
+        <div class="message-row">
+          <input id="message" type="text" maxlength="300" value="Hello, from client" autocomplete="off" />
+          <span class="char-count" id="char-count">17/300</span>
+        </div>
+        <div class="send-row">
+          <button id="send-btn" class="primary" type="button">Send Secure Message</button>
+          <label class="speed" title="How fast the paced walkthrough plays">
+            Speed
+            <select id="pace-speed" aria-label="Demo playback speed">
+              <option value="slow">Slow</option>
+              <option value="normal" selected>Normal</option>
+              <option value="fast">Fast</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint" id="send-hint">One full PQ handshake + encrypted round-trip will run live. Shortcuts: Enter send · ← → stages · Esc clear.</p>
+        <div class="reply" id="reply" hidden></div>
+      </div>
+    </section>
+
+    <!-- MIDDLE: stages -->
+    <section class="panel middle">
+      <div class="panel-head">
+        <h2 class="panel-title">What just happened</h2>
+        <div class="stage-controls">
+          <button type="button" id="prev-stage" title="Previous stage (←)">Prev</button>
+          <label class="autoplay">
+            <input type="checkbox" id="autoplay" checked /> Auto Play
+          </label>
+          <button type="button" id="next-stage" title="Next stage (→)">Next</button>
+          <span class="step-count" id="step-count">Step 0 / 9</span>
+        </div>
+      </div>
+
+      <div class="progress" aria-hidden="true">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+
+      <ol class="stages" id="stages"></ol>
+    </section>
+
+    <!-- RIGHT: live log -->
+    <section class="panel right">
+      <div class="panel-head">
+        <h2 class="panel-title">Live technical log</h2>
+        <div class="log-actions">
+          <button type="button" class="ghost" id="clear-log" title="Clear log panel">Clear</button>
+        </div>
+      </div>
+      <p class="log-intro">Click a legend color to filter. Click a log row to jump to its pipeline stage.</p>
+      <div class="legend" id="legend">
+        <button type="button" class="legend-btn" data-filter="all" aria-pressed="true"><i class="lg setup"></i> All</button>
+        <button type="button" class="legend-btn" data-filter="setup"><i class="lg setup"></i> Setup</button>
+        <button type="button" class="legend-btn" data-filter="pq"><i class="lg pq"></i> PQ crypto</button>
+        <button type="button" class="legend-btn" data-filter="ready"><i class="lg ready"></i> Ready</button>
+        <button type="button" class="legend-btn" data-filter="encrypted"><i class="lg encrypted"></i> Encrypted</button>
+        <button type="button" class="legend-btn" data-filter="error"><i class="lg error"></i> Error</button>
+      </div>
+      <div class="log" id="log" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
