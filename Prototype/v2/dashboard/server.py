@@ -174,7 +174,21 @@ def classify_line(source, line):
     return None
 
 
+# Benign, self-inflicted noise: a bare TCP connect-then-close against the
+# proxy's TLS port (from Docker's own container HEALTHCHECK, which runs
+# every 30s regardless of anything this dashboard does, or from any other
+# liveness probe) makes the proxy log a real but meaningless
+# "SSL: UNEXPECTED_EOF_WHILE_READING" error. It isn't part of the demo
+# story, so it's dropped before it ever reaches the browser.
+_SUPPRESSED_LOG_MARKERS = (
+    "UNEXPECTED_EOF_WHILE_READING",
+)
+
+
 def log_event(source, line):
+    if any(marker in line for marker in _SUPPRESSED_LOG_MARKERS):
+        return
+
     stage = classify_line(source, line)
     bus.publish({
         "type": "log",
@@ -233,14 +247,6 @@ def ensure_image_exists():
         sys.exit(1)
 
 
-def proxy_container_exists():
-    result = docker(
-        "inspect", PROXY_CONTAINER,
-        capture_output=True, text=True
-    )
-    return result.returncode == 0
-
-
 def attach_proxy_logs():
     """Tail an already-running proxy container's logs (does not start it)."""
     proc = subprocess.Popen(
@@ -291,6 +297,39 @@ def wait_for_port(host, port, timeout=30):
                 return True
         except OSError:
             time.sleep(0.4)
+    return False
+
+
+def proxy_container_running():
+    """
+    True if PROXY_CONTAINER is up, checked via `docker inspect` rather
+    than opening a bare TCP socket to it. The proxy wraps every accepted
+    connection in TLS immediately, so a plain connect-then-close (as a
+    liveness probe would do) makes it log a genuine
+    "SSL: UNEXPECTED_EOF_WHILE_READING" error — harmless, but noisy and
+    indistinguishable from a real failure once errors are highlighted in
+    the UI. Checking container state avoids touching the socket at all.
+    """
+    try:
+        result = docker(
+            "inspect", "--format", "{{.State.Running}}", PROXY_CONTAINER,
+            capture_output=True, text=True
+        )
+    except Exception:
+        return _port_open("127.0.0.1", PROXY_PORT)
+
+    if result.returncode != 0:
+        return False
+
+    return result.stdout.strip() == "true"
+
+
+def wait_for_proxy(timeout=30):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if proxy_container_running():
+            return True
+        time.sleep(0.4)
     return False
 
 
@@ -516,7 +555,7 @@ def health_watch():
     including services that come up after the dashboard does."""
     while True:
         state["backend"] = "online" if _port_open("127.0.0.1", BACKEND_PORT) else "offline"
-        state["proxy"] = "online" if _port_open("127.0.0.1", PROXY_PORT) else "offline"
+        state["proxy"] = "online" if proxy_container_running() else "offline"
         time.sleep(3)
 
 
@@ -552,7 +591,7 @@ def main():
         print("[DASHBOARD] Starting proxy container...")
         start_proxy_container()
 
-        if not wait_for_port("127.0.0.1", PROXY_PORT, timeout=30):
+        if not wait_for_proxy(timeout=30):
             print(f"[DASHBOARD] ERROR: proxy did not come up on port {PROXY_PORT}")
             sys.exit(1)
 
@@ -563,12 +602,12 @@ def main():
             f"running on port {PROXY_PORT} (won't start or stop it)"
         )
 
-        if proxy_container_exists():
+        if proxy_container_running():
             print(f"[DASHBOARD] Found container '{PROXY_CONTAINER}', attaching to its logs")
             attach_proxy_logs()
         else:
             print(
-                f"[DASHBOARD] No container named '{PROXY_CONTAINER}' found — "
+                f"[DASHBOARD] No running container named '{PROXY_CONTAINER}' found — "
                 f"live proxy/backend log stages won't show up, but sending "
                 f"messages still works as long as the proxy is reachable.\n"
                 f"            Set PROXY_CONTAINER to match your container's "

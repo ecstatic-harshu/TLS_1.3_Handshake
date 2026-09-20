@@ -27,98 +27,129 @@
 </header>
 
 <main>
+  <div class="layout">
 
-  <section class="topology" aria-label="Architecture">
+    <div class="col-left">
 
-    <div class="node" id="node-client">
-      <div class="node-icon">💻</div>
-      <div class="node-label">Client App</div>
-      <div class="node-sub">You / the customer</div>
+      <section class="topology" aria-label="Architecture">
+
+        <div class="node" id="node-client">
+          <div class="node-icon">💻</div>
+          <div class="node-label">Client App</div>
+          <div class="node-sub">You / the customer</div>
+          <div class="node-caption" id="caption-client">Idle — waiting to send a message</div>
+        </div>
+
+        <div class="track" id="track-left">
+          <div class="track-label">
+            <span class="lock">🔒</span> Post-Quantum Encrypted Channel
+          </div>
+          <div class="track-line"></div>
+          <div class="packet" id="packet-left"></div>
+        </div>
+
+        <div class="node highlight" id="node-proxy">
+          <div class="node-icon">🛡️</div>
+          <div class="node-label">Secure Proxy</div>
+          <div class="node-sub">Terminates PQ-TLS · decrypts &amp; forwards</div>
+          <div class="node-caption" id="caption-proxy">Idle — waiting for a client</div>
+        </div>
+
+        <div class="track" id="track-right">
+          <div class="track-label">
+            <span class="lock open">🔓</span> Plain HTTP (unchanged backend)
+          </div>
+          <div class="track-line"></div>
+          <div class="packet" id="packet-right"></div>
+        </div>
+
+        <div class="node" id="node-backend">
+          <div class="node-icon">🖥️</div>
+          <div class="node-label">Your Backend</div>
+          <div class="node-sub">Existing app, no changes needed</div>
+          <div class="node-caption" id="caption-backend">Idle — waiting for requests</div>
+        </div>
+
+      </section>
+
+      <section class="status-row">
+        <div class="status-pill" id="status-backend">
+          <span class="dot"></span> Backend
+        </div>
+        <div class="status-pill" id="status-proxy">
+          <span class="dot"></span> Proxy
+        </div>
+      </section>
+
+      <section class="control-panel">
+        <h2>Send a message through the secure proxy</h2>
+        <p class="hint">
+          Type anything below. Watch it get sealed into ciphertext, travel to the
+          proxy, get unlocked, forwarded to the backend as a normal request, and
+          come back encrypted again.
+        </p>
+
+        <div class="chips" id="chips">
+          <button class="chip" data-msg="Hello, secure world!">Hello, secure world!</button>
+          <button class="chip" data-msg="Transfer $500 to account 8841">Transfer $500 to account 8841</button>
+          <button class="chip" data-msg="Login: admin">Login: admin</button>
+        </div>
+
+        <form id="send-form">
+          <input type="text" id="message-input" maxlength="300" placeholder="Type a message to send securely..." autocomplete="off">
+          <button type="submit" id="send-btn">Send Secure Message</button>
+        </form>
+
+        <div class="result" id="result" hidden>
+          <div class="result-row">
+            <span class="result-label">You sent</span>
+            <code id="result-sent"></code>
+          </div>
+          <div class="result-row">
+            <span class="result-label">Backend replied</span>
+            <code id="result-reply"></code>
+          </div>
+        </div>
+      </section>
+
     </div>
 
-    <div class="track" id="track-left">
-      <div class="track-label">
-        <span class="lock">🔒</span> Post-Quantum Encrypted Channel
+    <section class="pipeline" aria-label="Pipeline stages">
+      <div class="pipeline-header">
+        <h2>What just happened</h2>
+        <label class="autoplay-toggle">
+          <input type="checkbox" id="autoplay-toggle">
+          Autoplay
+        </label>
       </div>
-      <div class="track-line"></div>
-      <div class="packet" id="packet-left"></div>
-    </div>
 
-    <div class="node highlight" id="node-proxy">
-      <div class="node-icon">🛡️</div>
-      <div class="node-label">Secure Proxy</div>
-      <div class="node-sub">Terminates PQ-TLS · decrypts &amp; forwards</div>
-    </div>
-
-    <div class="track" id="track-right">
-      <div class="track-label">
-        <span class="lock open">🔓</span> Plain HTTP (unchanged backend)
+      <div class="transport">
+        <button type="button" id="btn-prev" title="Previous step">⏮ Prev</button>
+        <button type="button" id="btn-playpause" title="Auto play">▶ Auto Play</button>
+        <button type="button" id="btn-next" title="Next step">⏭ Next</button>
+        <span class="transport-status" id="transport-status">No run yet</span>
       </div>
-      <div class="track-line"></div>
-      <div class="packet" id="packet-right"></div>
-    </div>
 
-    <div class="node" id="node-backend">
-      <div class="node-icon">🖥️</div>
-      <div class="node-label">Your Backend</div>
-      <div class="node-sub">Existing app, no changes needed</div>
-    </div>
+      <ol id="stage-list"></ol>
+    </section>
 
-  </section>
-
-  <section class="status-row">
-    <div class="status-pill" id="status-backend">
-      <span class="dot"></span> Backend
-    </div>
-    <div class="status-pill" id="status-proxy">
-      <span class="dot"></span> Proxy
-    </div>
-  </section>
-
-  <section class="control-panel">
-    <h2>Send a message through the secure proxy</h2>
-    <p class="hint">
-      Type anything below. Watch it get sealed into ciphertext, travel to the
-      proxy, get unlocked, forwarded to the backend as a normal request, and
-      come back encrypted again.
-    </p>
-
-    <div class="chips" id="chips">
-      <button class="chip" data-msg="Hello, secure world!">Hello, secure world!</button>
-      <button class="chip" data-msg="Transfer $500 to account 8841">Transfer $500 to account 8841</button>
-      <button class="chip" data-msg="Login: admin">Login: admin</button>
-    </div>
-
-    <form id="send-form">
-      <input type="text" id="message-input" maxlength="300" placeholder="Type a message to send securely..." autocomplete="off">
-      <button type="submit" id="send-btn">Send Secure Message</button>
-    </form>
-
-    <div class="result" id="result" hidden>
-      <div class="result-row">
-        <span class="result-label">You sent</span>
-        <code id="result-sent"></code>
+    <section class="console-wrap">
+      <div class="console-header">
+        <h2>Technical log</h2>
+        <button id="toggle-console">Hide</button>
       </div>
-      <div class="result-row">
-        <span class="result-label">Backend replied</span>
-        <code id="result-reply"></code>
+      <div class="console-legend">
+        <span><span class="swatch log-setup"></span>Session setup</span>
+        <span><span class="swatch log-pq"></span>Post-quantum crypto</span>
+        <span><span class="swatch log-success"></span>Channel ready</span>
+        <span><span class="swatch log-encrypted"></span>Encrypted leg</span>
+        <span><span class="swatch log-plain"></span>Plain HTTP leg</span>
+        <span><span class="swatch log-error"></span>Error</span>
       </div>
-    </div>
-  </section>
+      <div class="console" id="console"></div>
+    </section>
 
-  <section class="pipeline" aria-label="Pipeline stages">
-    <h2>What just happened</h2>
-    <ol id="stage-list"></ol>
-  </section>
-
-  <section class="console-wrap">
-    <div class="console-header">
-      <h2>Technical log</h2>
-      <button id="toggle-console">Show</button>
-    </div>
-    <div class="console" id="console" hidden></div>
-  </section>
-
+  </div>
 </main>
 
 <script src="/app.js"></script>
