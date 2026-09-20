@@ -63,6 +63,8 @@ python -m middleware.main --mode client --host 127.0.0.1 --port 5000
 
 ## Docker
 
+`liboqs/` and `liboqs-python/` are gitlinks without a `.gitmodules` file, so they often arrive as empty folders. The Dockerfile clones the pinned upstream commits when those sources are missing.
+
 ```powershell
 docker build -t pqtls-middleware:1.0.0 .
 docker run --rm -p 5000:5000 pqtls-middleware:1.0.0 --mode server

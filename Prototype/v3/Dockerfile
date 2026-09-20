@@ -22,11 +22,18 @@ RUN apt-get update && apt-get install -y \
 # (Docker cache optimization)
 COPY requirements.txt .
 
-# Copy liboqs
-COPY liboqs ./liboqs
+# Pinned to the gitlink SHAs recorded in this repo (no .gitmodules).
+ARG LIBOQS_COMMIT=5a1a854b0dc9f2141bdc771c555ee60c37950183
+ARG LIBOQS_PYTHON_COMMIT=35eceb69d2b363cb0421085cf1ae1c682dee1acc
 
-# Build liboqs
-RUN mkdir -p liboqs/build && \
+# Copy liboqs. Folders are often empty gitlinks; clone the pin if so.
+COPY liboqs ./liboqs
+RUN if [ ! -f liboqs/CMakeLists.txt ]; then \
+      rm -rf liboqs && \
+      git clone https://github.com/open-quantum-safe/liboqs.git liboqs && \
+      git -C liboqs checkout --quiet "${LIBOQS_COMMIT}"; \
+    fi && \
+    mkdir -p liboqs/build && \
     cd liboqs/build && \
     cmake -GNinja \
         -DCMAKE_BUILD_TYPE=Release \
@@ -38,9 +45,12 @@ RUN mkdir -p liboqs/build && \
 
 # Copy liboqs-python
 COPY liboqs-python ./liboqs-python
-
-# Install liboqs-python
-RUN cd liboqs-python && \
+RUN if [ ! -f liboqs-python/pyproject.toml ] && [ ! -f liboqs-python/setup.py ]; then \
+      rm -rf liboqs-python && \
+      git clone https://github.com/open-quantum-safe/liboqs-python.git liboqs-python && \
+      git -C liboqs-python checkout --quiet "${LIBOQS_PYTHON_COMMIT}"; \
+    fi && \
+    cd liboqs-python && \
     pip install .
 
 # Install Python dependencies
