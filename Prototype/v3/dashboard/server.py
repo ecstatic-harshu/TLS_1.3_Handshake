@@ -567,10 +567,21 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/status":
+            proxy = state["proxy"]
+            backend = state["backend"]
+            if proxy == "online" and backend == "online":
+                gateway = "online"
+            elif proxy == "offline" and backend == "offline":
+                gateway = "offline"
+            else:
+                gateway = "starting"
             self._send_json(200, {
-                "backend": state["backend"],
-                "proxy": state["proxy"],
-                "busy": send_lock.locked() or demo_active.is_set()
+                "backend": backend,
+                "proxy": proxy,
+                "busy": send_lock.locked() or demo_active.is_set(),
+                "proxy_port": PROXY_PORT,
+                "backend_port": BACKEND_PORT,
+                "gateway": gateway
             })
             return
 
@@ -600,7 +611,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": "message is required"})
             return
 
-        message = message[:300]
+        message = message[:500]
 
         if send_lock.locked() or demo_active.is_set():
             self._send_json(409, {"error": "A demo run is already in progress"})
