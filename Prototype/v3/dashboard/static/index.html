@@ -118,7 +118,7 @@
             </div>
 
             <div class="tab-pane is-active" id="tab-text">
-              <textarea id="message" maxlength="500" rows="4">Hello, secure world!</textarea>
+              <textarea id="message" maxlength="500" rows="3">Hello, secure world!</textarea>
               <div class="char-count" id="char-count">20/500</div>
             </div>
 
@@ -136,18 +136,32 @@
             </div>
 
             <div class="field-row">
-              <label>
-                Protocol
-                <select id="protocol-select" disabled>
-                  <option selected>TCP (TLS 1.3)</option>
-                </select>
-              </label>
-              <label>
-                Crypto Mode
-                <select id="crypto-select" disabled>
-                  <option selected>Hybrid (PQC + Classical)</option>
-                </select>
-              </label>
+              <div class="static-field" title="Fixed for this demo">
+                <span class="static-field-label">Protocol</span>
+                <div class="static-field-value">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 2 20 6v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6z"/>
+                  </svg>
+                  <span>TCP (TLS 1.3)</span>
+                  <svg class="static-field-lock" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="9" rx="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="static-field" title="Fixed for this demo">
+                <span class="static-field-label">Crypto Mode</span>
+                <div class="static-field-value">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 2 20 6v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6z"/>
+                  </svg>
+                  <span>Hybrid (PQC + Classical)</span>
+                  <svg class="static-field-lock" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="9" rx="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+                  </svg>
+                </div>
+              </div>
             </div>
 
             <button type="button" class="primary" id="send-btn">
@@ -235,70 +249,257 @@
           </div>
 
           <div class="topology" id="topology" data-flow="idle">
-            <div class="topo-pills">
+            <div class="topo-atmo" aria-hidden="true">
+              <span class="atmo-rack left"></span>
+              <span class="atmo-rack right"></span>
+              <span class="atmo-dust">0 1 0 1 1 0 1 0 0 1 0 1</span>
+              <span class="atmo-dust alt">1 0 1 0 0 1 0 1 1 0 1 0</span>
+            </div>
+            <div class="proto-bar">
               <span>TLS 1.3</span>
               <span>ML-KEM-768</span>
               <span>ML-DSA-65</span>
               <span>AES-256-GCM</span>
             </div>
 
-            <div class="topo-row">
-              <button type="button" class="node" id="node-client" data-role="client">
-                <div class="node-art client-art" aria-hidden="true">
-                  <svg viewBox="0 0 64 48" width="56" height="42">
-                    <rect x="8" y="8" width="48" height="28" rx="3" fill="#0b1a33" stroke="#38bdf8" stroke-width="1.5"/>
-                    <rect x="12" y="12" width="40" height="18" rx="1.2" fill="#16325c"/>
-                    <path d="M4 38h56" stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round"/>
-                    <path d="M22 38h20v3H22z" fill="#38bdf8" opacity="0.7"/>
-                  </svg>
-                </div>
+            <div class="topo-stage">
+              <button type="button" class="node glass-card" id="node-client" data-role="client">
+                <svg class="device" viewBox="0 0 80 68" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="laptopGlass" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#bae6fd" stop-opacity="0.38"/>
+                      <stop offset="1" stop-color="#0ea5e9" stop-opacity="0.05"/>
+                    </linearGradient>
+                  </defs>
+                  <rect x="16" y="4" width="48" height="34" rx="3.5" fill="url(#laptopGlass)" stroke="#7dd3fc" stroke-width="1.6"/>
+                  <rect x="21" y="9" width="38" height="24" rx="1.4" fill="none" stroke="#e0f2fe" stroke-width="0.9" opacity="0.55"/>
+                  <path d="M9 44h62l-6.4 10.6a4 4 0 0 1-3.4 1.9H18.8a4 4 0 0 1-3.4-1.9z" fill="url(#laptopGlass)" stroke="#7dd3fc" stroke-width="1.6" stroke-linejoin="round"/>
+                  <path d="M31 49.4h18" stroke="#e0f2fe" stroke-width="1.3" stroke-linecap="round" opacity="0.75"/>
+                </svg>
                 <strong>Client Application</strong>
                 <span>You / The Customer</span>
-                <em class="pkt pkt-plain" id="pkt-plain">Hello, secure world!<small>Plain Text</small></em>
               </button>
 
-              <div class="link" id="link-pq" data-role="link-client">
-                <span class="wave"></span>
-                <span class="packet down"></span>
-                <span class="packet up"></span>
+              <div class="lane" id="link-pq" data-role="link-client">
+                <em class="chip chip-plain" id="pkt-plain">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="9" rx="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 7.2-2.4"/>
+                    <path d="M4 4l16 16" stroke-linecap="round"/>
+                  </svg>
+                  <span><b>Hello, secure world!</b><small>Plain Text</small></span>
+                </em>
+                <svg class="stream" viewBox="0 0 260 110" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <path id="bw1" d="M2 30 C 55 10, 105 50, 160 30 S 215 10, 252 28"/>
+                    <path id="bw2" d="M2 55 C 60 36, 115 76, 165 55 S 220 34, 252 52"/>
+                    <path id="bw3" d="M2 80 C 50 62, 110 100, 162 80 S 212 60, 252 76"/>
+                    <filter id="bloomBlue" x="-25%" y="-80%" width="150%" height="260%">
+                      <feGaussianBlur stdDeviation="1.8" result="b"/>
+                      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <linearGradient id="fadeBlue" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+                      <stop offset="0.16" stop-color="#fff" stop-opacity="1"/>
+                      <stop offset="0.78" stop-color="#fff" stop-opacity="1"/>
+                      <stop offset="1" stop-color="#fff" stop-opacity="0.05"/>
+                    </linearGradient>
+                    <mask id="maskBlue" maskUnits="userSpaceOnUse" x="0" y="0" width="260" height="110">
+                      <rect width="260" height="110" fill="url(#fadeBlue)"/>
+                    </mask>
+                  </defs>
+                  <g class="bit-bg">
+                    <text x="18" y="18">1</text><text x="46" y="22">0</text><text x="78" y="14">1</text>
+                    <text x="112" y="20">0</text><text x="148" y="16">1</text><text x="186" y="22">0</text>
+                    <text x="24" y="100">0</text><text x="70" y="96">1</text><text x="130" y="102">0</text><text x="190" y="98">1</text>
+                  </g>
+                  <g class="flow-glow" filter="url(#bloomBlue)">
+                    <path class="flow-core" d="M2 30 C 55 10, 105 50, 160 30 S 215 10, 252 28"/>
+                    <path class="flow-core" d="M2 55 C 60 36, 115 76, 165 55 S 220 34, 252 52"/>
+                    <path class="flow-core" d="M2 80 C 50 62, 110 100, 162 80 S 212 60, 252 76"/>
+                    <path class="flow-line" d="M2 30 C 55 10, 105 50, 160 30 S 215 10, 252 28"/>
+                    <path class="flow-line" style="animation-delay:-0.9s" d="M2 55 C 60 36, 115 76, 165 55 S 220 34, 252 52"/>
+                    <path class="flow-line" style="animation-delay:-1.7s" d="M2 80 C 50 62, 110 100, 162 80 S 212 60, 252 76"/>
+                  </g>
+                  <g class="bit-flow" mask="url(#maskBlue)">
+                    <text class="bit-text" textLength="512" lengthAdjust="spacing"><textPath href="#bw1"><animate attributeName="startOffset" from="0" to="64" dur="5.2s" repeatCount="indefinite" calcMode="linear"/>0100110101001101010011010100110101001101010011010100110101001101</textPath></text>
+                    <text class="bit-text" textLength="512" lengthAdjust="spacing"><textPath href="#bw2"><animate attributeName="startOffset" from="0" to="64" dur="5.2s" begin="-1.7s" repeatCount="indefinite" calcMode="linear"/>0100110101001101010011010100110101001101010011010100110101001101</textPath></text>
+                    <text class="bit-text" textLength="512" lengthAdjust="spacing"><textPath href="#bw3"><animate attributeName="startOffset" from="0" to="64" dur="5.2s" begin="-3.4s" repeatCount="indefinite" calcMode="linear"/>0100110101001101010011010100110101001101010011010100110101001101</textPath></text>
+                  </g>
+                  <g class="bit-flow" filter="url(#bloomBlue)">
+                    <circle r="1.7" fill="#f0f9ff"><animateMotion dur="3.6s" repeatCount="indefinite"><mpath href="#bw1"/></animateMotion></circle>
+                    <circle r="1.3" fill="#7dd3fc"><animateMotion dur="4.2s" begin="-1.4s" repeatCount="indefinite"><mpath href="#bw2"/></animateMotion></circle>
+                    <circle r="1.5" fill="#e0f2fe"><animateMotion dur="3.9s" begin="-2.2s" repeatCount="indefinite"><mpath href="#bw3"/></animateMotion></circle>
+                  </g>
+                  <g class="arrow-layer">
+                  <g class="flow-arrowhead" data-hop="client" data-index="0">
+                    <path class="flow-arrow-bloom" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow-core" d="M2.4 0C4-1.2 6.2-4 9.2-4.8C7.4-2.6 7-1.2 11 0C7 1.2 7.4 2.6 9.2 4.8C6.2 4 4 1.2 2.4 0Z"/>
+                  </g>
+                  <g class="flow-arrowhead" data-hop="client" data-index="1">
+                    <path class="flow-arrow-bloom" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow-core" d="M2.4 0C4-1.2 6.2-4 9.2-4.8C7.4-2.6 7-1.2 11 0C7 1.2 7.4 2.6 9.2 4.8C6.2 4 4 1.2 2.4 0Z"/>
+                  </g>
+                  <g class="flow-arrowhead" data-hop="client" data-index="2">
+                    <path class="flow-arrow-bloom" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow-core" d="M2.4 0C4-1.2 6.2-4 9.2-4.8C7.4-2.6 7-1.2 11 0C7 1.2 7.4 2.6 9.2 4.8C6.2 4 4 1.2 2.4 0Z"/>
+                  </g>
+                  </g>
+                </svg>
               </div>
 
-              <button type="button" class="hex-wrap" id="node-proxy" data-role="proxy">
-                <div class="hex">
-                  <svg class="hex-shape" viewBox="0 0 120 132">
-                    <polygon points="60,6 114,36 114,96 60,126 6,96 6,36" fill="rgba(8,24,52,0.92)" stroke="#22d3ee" stroke-width="2.2"/>
+              <button type="button" class="node hex-wrap" id="node-proxy" data-role="proxy">
+                <span class="hex-halo" aria-hidden="true"></span>
+                <svg class="hex-prism" viewBox="0 12 220 200" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="hexGlass" x1="0.2" y1="0" x2="0.8" y2="1">
+                      <stop offset="0" stop-color="#e0f2fe" stop-opacity="0.30"/>
+                      <stop offset="0.4" stop-color="#38bdf8" stop-opacity="0.14"/>
+                      <stop offset="1" stop-color="#031525" stop-opacity="0.55"/>
+                    </linearGradient>
+                    <filter id="hexBloom" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="7"/>
+                    </filter>
+                    <filter id="hexLineGlow" x="-60%" y="-60%" width="220%" height="220%">
+                      <feGaussianBlur stdDeviation="2.2" result="b"/>
+                      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <clipPath id="hexClip">
+                      <polygon points="156,35.3 202,115 156,194.7 64,194.7 18,115 64,35.3"/>
+                    </clipPath>
+                  </defs>
+                  <ellipse cx="110" cy="115" rx="98" ry="92" fill="#38bdf8" opacity="0.4" filter="url(#hexBloom)"/>
+                  <g clip-path="url(#hexClip)" opacity="0.55">
+                    <line x1="34" y1="10" x2="34" y2="220" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3 7" opacity="0.35"/>
+                    <line x1="58" y1="10" x2="58" y2="220" stroke="#7dd3fc" stroke-width="1" stroke-dasharray="2 9" opacity="0.25"/>
+                    <line x1="82" y1="10" x2="82" y2="220" stroke="#38bdf8" stroke-width="1" stroke-dasharray="5 6" opacity="0.3"/>
+                    <line x1="138" y1="10" x2="138" y2="220" stroke="#38bdf8" stroke-width="1" stroke-dasharray="5 6" opacity="0.3"/>
+                    <line x1="162" y1="10" x2="162" y2="220" stroke="#7dd3fc" stroke-width="1" stroke-dasharray="2 9" opacity="0.25"/>
+                    <line x1="186" y1="10" x2="186" y2="220" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3 7" opacity="0.35"/>
+                  </g>
+                  <polygon points="156,35.3 202,115 156,194.7 64,194.7 18,115 64,35.3" fill="url(#hexGlass)"/>
+                  <polygon points="156,35.3 202,115 156,194.7 64,194.7 18,115 64,35.3" fill="none" stroke="#7dd3fc" stroke-width="2.4" filter="url(#hexLineGlow)"/>
+                  <polygon points="148,49.2 186,115 148,180.8 72,180.8 34,115 72,49.2" fill="none" stroke="#e0f2fe" stroke-width="1" opacity="0.7"/>
+                </svg>
+                <span class="prism-face">
+                  <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true" style="filter: drop-shadow(0 0 6px rgba(125,211,252,0.85));">
+                    <path d="M16 3.6 26.5 7.6v8.6c0 6.9-4.4 12.1-10.5 14.2C9.9 28.3 5.5 23.1 5.5 16.2V7.6L16 3.6z" fill="rgba(125,211,252,0.22)" stroke="#e0f2fe" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M16 15.6v9.4" stroke="#e0f2fe" stroke-width="1.4" opacity="0.75"/>
                   </svg>
-                  <div class="hex-inner">
-                    <svg viewBox="0 0 32 32" width="28" height="28">
-                      <path d="M16 4 26 8.6v8.2c0 5.6-4.1 10.3-10 11.2C10.1 27.1 6 22.4 6 16.8V8.6L16 4z" fill="none" stroke="#67e8f9" stroke-width="1.7"/>
-                      <path d="M16 11v8m0 0-3-2m3 2 3-2" stroke="#e0f2fe" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    <strong>NQSP</strong>
-                    <span>Quantum-Safe Proxy</span>
-                  </div>
-                </div>
+                  <strong>NQSP</strong>
+                  <span>Quantum-Safe Proxy</span>
+                </span>
               </button>
 
-              <div class="link hop" id="link-backend" data-role="link-server">
-                <span class="wave"></span>
-                <span class="packet down"></span>
-                <span class="packet up"></span>
+              <div class="lane" id="link-backend" data-role="link-server">
+                <em class="chip chip-cipher" id="pkt-cipher">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <rect x="5" y="11" width="14" height="9" rx="2"/>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+                  </svg>
+                  <span><b>A3F9…7D2C</b><small>Encrypted (PQC + Classical)</small></span>
+                </em>
+                <svg class="stream stream-green" viewBox="0 0 260 110" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <path id="gw1" d="M258 30 C 205 10, 155 50, 100 30 S 45 10, 8 28"/>
+                    <path id="gw2" d="M258 55 C 200 36, 145 76, 95 55 S 40 34, 8 52"/>
+                    <path id="gw3" d="M258 80 C 210 62, 150 100, 98 80 S 48 60, 8 76"/>
+                    <filter id="bloomGreen" x="-25%" y="-80%" width="150%" height="260%">
+                      <feGaussianBlur stdDeviation="1.8" result="b"/>
+                      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <linearGradient id="fadeGreen" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0" stop-color="#fff" stop-opacity="0.05"/>
+                      <stop offset="0.22" stop-color="#fff" stop-opacity="1"/>
+                      <stop offset="0.84" stop-color="#fff" stop-opacity="1"/>
+                      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+                    </linearGradient>
+                    <mask id="maskGreen" maskUnits="userSpaceOnUse" x="0" y="0" width="260" height="110">
+                      <rect width="260" height="110" fill="url(#fadeGreen)"/>
+                    </mask>
+                  </defs>
+                  <g class="bit-bg">
+                    <text x="28" y="18">0</text><text x="62" y="22">1</text><text x="98" y="14">0</text>
+                    <text x="136" y="20">1</text><text x="172" y="16">0</text><text x="214" y="22">1</text>
+                    <text x="40" y="100">1</text><text x="96" y="96">0</text><text x="160" y="102">1</text><text x="220" y="98">0</text>
+                  </g>
+                  <g class="flow-glow" filter="url(#bloomGreen)">
+                    <path class="flow-core" d="M258 30 C 205 10, 155 50, 100 30 S 45 10, 8 28"/>
+                    <path class="flow-core" d="M258 55 C 200 36, 145 76, 95 55 S 40 34, 8 52"/>
+                    <path class="flow-core" d="M258 80 C 210 62, 150 100, 98 80 S 48 60, 8 76"/>
+                    <path class="flow-line" d="M258 30 C 205 10, 155 50, 100 30 S 45 10, 8 28"/>
+                    <path class="flow-line" style="animation-delay:-0.9s" d="M258 55 C 200 36, 145 76, 95 55 S 40 34, 8 52"/>
+                    <path class="flow-line" style="animation-delay:-1.7s" d="M258 80 C 210 62, 150 100, 98 80 S 48 60, 8 76"/>
+                  </g>
+                  <g class="bit-flow" mask="url(#maskGreen)">
+                    <text class="bit-text" textLength="512" lengthAdjust="spacing"><textPath href="#gw1"><animate attributeName="startOffset" from="0" to="64" dur="5.2s" repeatCount="indefinite" calcMode="linear"/>0100110101001101010011010100110101001101010011010100110101001101</textPath></text>
+                    <text class="bit-text" textLength="512" lengthAdjust="spacing"><textPath href="#gw2"><animate attributeName="startOffset" from="0" to="64" dur="5.2s" begin="-1.7s" repeatCount="indefinite" calcMode="linear"/>0100110101001101010011010100110101001101010011010100110101001101</textPath></text>
+                    <text class="bit-text" textLength="512" lengthAdjust="spacing"><textPath href="#gw3"><animate attributeName="startOffset" from="0" to="64" dur="5.2s" begin="-3.4s" repeatCount="indefinite" calcMode="linear"/>0100110101001101010011010100110101001101010011010100110101001101</textPath></text>
+                  </g>
+                  <g class="bit-flow" filter="url(#bloomGreen)">
+                    <circle r="1.7" fill="#ecfdf5"><animateMotion dur="3.6s" repeatCount="indefinite"><mpath href="#gw1"/></animateMotion></circle>
+                    <circle r="1.3" fill="#5eead4"><animateMotion dur="4.2s" begin="-1.4s" repeatCount="indefinite"><mpath href="#gw2"/></animateMotion></circle>
+                    <circle r="1.5" fill="#99f6e4"><animateMotion dur="3.9s" begin="-2.2s" repeatCount="indefinite"><mpath href="#gw3"/></animateMotion></circle>
+                  </g>
+                  <g class="arrow-layer">
+                  <g class="flow-arrowhead" data-hop="server" data-index="0">
+                    <path class="flow-arrow-bloom" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow-core" d="M2.4 0C4-1.2 6.2-4 9.2-4.8C7.4-2.6 7-1.2 11 0C7 1.2 7.4 2.6 9.2 4.8C6.2 4 4 1.2 2.4 0Z"/>
+                  </g>
+                  <g class="flow-arrowhead" data-hop="server" data-index="1">
+                    <path class="flow-arrow-bloom" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow-core" d="M2.4 0C4-1.2 6.2-4 9.2-4.8C7.4-2.6 7-1.2 11 0C7 1.2 7.4 2.6 9.2 4.8C6.2 4 4 1.2 2.4 0Z"/>
+                  </g>
+                  <g class="flow-arrowhead" data-hop="server" data-index="2">
+                    <path class="flow-arrow-bloom" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow" d="M0 0C2.6-2.2 6-7.4 13-9C9.2-5.2 8.2-2.2 15.5 0C8.2 2.2 9.2 5.2 13 9C6 7.4 2.6 2.2 0 0Z"/>
+                    <path class="flow-arrow-core" d="M2.4 0C4-1.2 6.2-4 9.2-4.8C7.4-2.6 7-1.2 11 0C7 1.2 7.4 2.6 9.2 4.8C6.2 4 4 1.2 2.4 0Z"/>
+                  </g>
+                  </g>
+                </svg>
               </div>
 
-              <button type="button" class="node" id="node-backend" data-role="backend">
-                <div class="node-art server-art" aria-hidden="true">
-                  <svg viewBox="0 0 64 48" width="56" height="42">
-                    <rect x="14" y="6" width="36" height="12" rx="2" fill="#0b1a33" stroke="#22d3ee" stroke-width="1.3"/>
-                    <rect x="14" y="20" width="36" height="12" rx="2" fill="#0b1a33" stroke="#22d3ee" stroke-width="1.3"/>
-                    <rect x="14" y="34" width="36" height="8" rx="2" fill="#0b1a33" stroke="#38bdf8" stroke-width="1.3"/>
-                    <circle cx="20" cy="12" r="1.4" fill="#4ade80"/><circle cx="20" cy="26" r="1.4" fill="#4ade80"/>
-                  </svg>
-                </div>
+              <button type="button" class="node glass-card server-card" id="node-backend" data-role="backend">
+                <svg class="device" viewBox="0 0 64 88" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="rackGlass" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#bae6fd" stop-opacity="0.32"/>
+                      <stop offset="1" stop-color="#0ea5e9" stop-opacity="0.05"/>
+                    </linearGradient>
+                  </defs>
+                  <g>
+                    <rect x="4" y="4" width="56" height="20" rx="3" fill="url(#rackGlass)" stroke="#7dd3fc" stroke-width="1.5"/>
+                    <line x1="10" y1="10" x2="10" y2="18" stroke="#e0f2fe" stroke-width="1.1" opacity="0.6"/>
+                    <line x1="14" y1="10" x2="14" y2="18" stroke="#e0f2fe" stroke-width="1.1" opacity="0.4"/>
+                    <circle cx="45" cy="14" r="2" fill="#7dd3fc"/>
+                    <rect x="51" y="11" width="6" height="6" rx="1.2" fill="none" stroke="#e0f2fe" stroke-width="1"/>
+                  </g>
+                  <g>
+                    <rect x="4" y="34" width="56" height="20" rx="3" fill="url(#rackGlass)" stroke="#7dd3fc" stroke-width="1.5"/>
+                    <line x1="10" y1="40" x2="10" y2="48" stroke="#e0f2fe" stroke-width="1.1" opacity="0.6"/>
+                    <line x1="14" y1="40" x2="14" y2="48" stroke="#e0f2fe" stroke-width="1.1" opacity="0.4"/>
+                    <circle cx="45" cy="44" r="2" fill="#7dd3fc"/>
+                    <circle cx="54" cy="44" r="3" fill="none" stroke="#e0f2fe" stroke-width="1"/>
+                  </g>
+                  <g>
+                    <rect x="4" y="64" width="56" height="20" rx="3" fill="url(#rackGlass)" stroke="#7dd3fc" stroke-width="1.5"/>
+                    <line x1="10" y1="70" x2="10" y2="78" stroke="#e0f2fe" stroke-width="1.1" opacity="0.6"/>
+                    <line x1="14" y1="70" x2="14" y2="78" stroke="#e0f2fe" stroke-width="1.1" opacity="0.4"/>
+                    <circle cx="45" cy="74" r="2" fill="#7dd3fc"/>
+                    <path d="M52 71.3a3.1 3.1 0 1 1 -1.1 5.9" fill="none" stroke="#e0f2fe" stroke-width="1" stroke-linecap="round"/>
+                    <path d="M51.2 76.8l-1.1 1.4 1.8.3" fill="none" stroke="#e0f2fe" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+                  </g>
+                </svg>
                 <strong>PQ Server</strong>
                 <span>Destination Server</span>
-                <em class="pkt pkt-cipher" id="pkt-cipher">A3F9…7D2C<small>Encrypted (PQC + Classical)</small></em>
               </button>
             </div>
+
             <p class="topo-caption">Encrypt · Protect · Forward</p>
             <p class="flow-status" id="flow-status">Idle — send a message to watch packets move.</p>
           </div>
@@ -362,10 +563,25 @@
                 <strong>Secure Channel Ready</strong>
                 <small>Encrypted communication</small>
               </li>
-              <li class="step locked" data-rail="delivered" data-stage="response">
+              <li class="step locked" data-rail="send" data-stage="send">
                 <span class="step-n">6</span>
-                <strong>Message Delivered</strong>
-                <small>Success</small>
+                <strong>Sent to Proxy</strong>
+                <small>Client → Proxy, encrypted</small>
+              </li>
+              <li class="step locked" data-rail="proxy_relay" data-stage="proxy_relay">
+                <span class="step-n">7</span>
+                <strong>Relayed to Server</strong>
+                <small>Proxy → PQ Server</small>
+              </li>
+              <li class="step locked" data-rail="backend" data-stage="backend">
+                <span class="step-n">8</span>
+                <strong>Server Processing</strong>
+                <small>PQ server handling request</small>
+              </li>
+              <li class="step locked" data-rail="response" data-stage="response">
+                <span class="step-n">9</span>
+                <strong>Response Delivered</strong>
+                <small>Reply sent back to client</small>
               </li>
             </ol>
           </article>

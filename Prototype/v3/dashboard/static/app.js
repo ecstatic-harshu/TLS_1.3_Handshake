@@ -9,17 +9,28 @@ const STAGE_DEFS = [
   { id: "pq", rail: "pq" },
   { id: "hybrid", rail: "hybrid" },
   { id: "channel", rail: "channel" },
-  { id: "send", rail: "delivered" },
-  { id: "proxy_relay", rail: "delivered" },
-  { id: "backend", rail: "delivered" },
-  { id: "response", rail: "delivered" }
+  { id: "send", rail: "send" },
+  { id: "proxy_relay", rail: "proxy_relay" },
+  { id: "backend", rail: "backend" },
+  { id: "response", rail: "response" }
 ];
 
-const RAIL_ORDER = ["tcp", "tls", "pq", "hybrid", "channel", "delivered"];
+const RAIL_ORDER = ["tcp", "tls", "pq", "hybrid", "channel", "send", "proxy_relay", "backend", "response"];
 
 const PACE = { log: 450, stage: 1600 };
 const LOG_MS = PACE.log;
 const STAGE_HOLD_MS = PACE.stage;
+// The arrow glide has to land before the next stage's log lines start
+// appearing (STAGE_HOLD_MS apart), so it's derived from that pace rather
+// than a made-up number — slow and soft, but never behind the real pipeline.
+const ARROW_TRAVEL_MS = Math.round(STAGE_HOLD_MS * 0.85);
+// The return journey (server -> proxy, then proxy -> client) is a two-phase
+// cosmetic replay — real per-hop timing on the way back isn't observed
+// separately, only the full round trip. Each phase needs to stay on screen
+// long enough to actually read as a continuous, flowing hop rather than a
+// flash: at least one full active-line cycle (see .flow-line's 1.6s duration
+// in style.css, itself matched to STAGE_HOLD_MS) plus the arrow's own glide.
+const RETURN_PHASE_MS = Math.round(STAGE_HOLD_MS * 1.5);
 
 const stageOrder = STAGE_DEFS.map((s) => s.id);
 const activated = new Set();
@@ -131,10 +142,256 @@ function currentPayload() {
   return (messageEl.value || "").trim();
 }
 
+// Each hop is two cubics matching the stream paths. Client curves run left→right.
+// Server curves are drawn right→left, so u=0 is the server end and u=1 is the proxy end.
+const FLOW_CURVES = {
+  client: [
+    [[2, 30], [55, 10], [105, 50], [160, 30], [160, 30], [215, 10], [215, 10], [252, 28]],
+    [[2, 55], [60, 36], [115, 76], [165, 55], [165, 55], [215, 34], [220, 34], [252, 52]],
+    [[2, 80], [50, 62], [110, 100], [162, 80], [162, 80], [214, 60], [212, 60], [252, 76]]
+  ],
+  server: [
+    [[258, 30], [205, 10], [155, 50], [100, 30], [100, 30], [45, 10], [45, 10], [8, 28]],
+    [[258, 55], [200, 36], [145, 76], [95, 55], [95, 55], [45, 34], [40, 34], [8, 52]],
+    [[258, 80], [210, 62], [150, 100], [98, 80], [98, 80], [46, 60], [48, 60], [8, 76]]
+  ]
+};
+
+const flowPaths = {};
+const arrowMotions = new Map();
+let arrowFrame = 0;
+
+function cubicPoint(p0, c1, c2, p1, t) {
+  const u = 1 - t;
+  return {
+    x: u ** 3 * p0[0] + 3 * u ** 2 * t * c1[0] + 3 * u * t ** 2 * c2[0] + t ** 3 * p1[0],
+    y: u ** 3 * p0[1] + 3 * u ** 2 * t * c1[1] + 3 * u * t ** 2 * c2[1] + t ** 3 * p1[1],
+    dx: 3 * u ** 2 * (c1[0] - p0[0]) + 6 * u * t * (c2[0] - c1[0]) + 3 * t ** 2 * (p1[0] - c2[0]),
+    dy: 3 * u ** 2 * (c1[1] - p0[1]) + 6 * u * t * (c2[1] - c1[1]) + 3 * t ** 2 * (p1[1] - c2[1])
+  };
+}
+
+function pointOnCubics(pts, t) {
+  const u = Math.min(1, Math.max(0, t));
+  const local = u < 0.5 ? u * 2 : (u - 0.5) * 2;
+  const i = u < 0.5 ? 0 : 4;
+  return cubicPoint(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], u >= 1 ? 1 : local);
+}
+
+function buildFlowPath(pts) {
+  const steps = 72;
+  const samples = [];
+  let length = 0;
+  let prev = null;
+  for (let i = 0; i <= steps; i++) {
+    const p = pointOnCubics(pts, i / steps);
+    if (prev) length += Math.hypot(p.x - prev.x, p.y - prev.y);
+    samples.push({ ...p, length });
+    prev = p;
+  }
+  return { samples, length };
+}
+
+function sampleFlowPath(path, u) {
+  const target = Math.min(1, Math.max(0, u)) * path.length;
+  const samples = path.samples;
+  let i = 1;
+  while (i < samples.length && samples[i].length < target) i += 1;
+  const a = samples[i - 1];
+  const b = samples[Math.min(i, samples.length - 1)];
+  const span = b.length - a.length || 1;
+  const f = (target - a.length) / span;
+  return {
+    x: a.x + (b.x - a.x) * f,
+    y: a.y + (b.y - a.y) * f,
+    dx: a.dx + (b.dx - a.dx) * f,
+    dy: a.dy + (b.dy - a.dy) * f
+  };
+}
+
+function pathForArrow(el) {
+  const hop = el.dataset.hop;
+  const index = Number(el.dataset.index);
+  const key = `${hop}:${index}`;
+  if (!flowPaths[key]) flowPaths[key] = buildFlowPath(FLOW_CURVES[hop][index]);
+  return flowPaths[key];
+}
+
+function paintFlowArrow(el, u, towardIncreasing) {
+  const sample = sampleFlowPath(pathForArrow(el), u);
+  const sign = towardIncreasing ? 1 : -1;
+  let vx = sample.dx * sign;
+  let vy = sample.dy * sign;
+  const mag = Math.hypot(vx, vy) || 1;
+  vx /= mag;
+  vy /= mag;
+  const tipX = sample.x + vx * 2;
+  const tipY = sample.y + vy * 2;
+  const deg = Math.atan2(vy, vx) * 180 / Math.PI + 180;
+  const fix = arrowAspectFix(el);
+  el.setAttribute(
+    "transform",
+    `translate(${tipX.toFixed(2)},${tipY.toFixed(2)}) rotate(${deg.toFixed(2)}) scale(${fix.toFixed(4)},1)`
+  );
+}
+
+function arrowAspectFix(el) {
+  const svg = el.ownerSVGElement;
+  if (!svg) return 1;
+  const rect = svg.getBoundingClientRect();
+  const box = svg.viewBox.baseVal;
+  if (!rect.width || !rect.height || !box.width || !box.height) return 1;
+  const scaleX = rect.width / box.width;
+  const scaleY = rect.height / box.height;
+  if (!scaleX || !scaleY) return 1;
+  return scaleY / scaleX;
+}
+
+function repaintFlowArrows() {
+  arrowMotions.forEach((motion, el) => {
+    paintFlowArrow(el, motion.u, motion.u >= 0.5);
+  });
+}
+
+function watchStreamScale() {
+  if (typeof ResizeObserver === "undefined") {
+    window.addEventListener("resize", repaintFlowArrows);
+    return;
+  }
+  const observer = new ResizeObserver(() => repaintFlowArrows());
+  document.querySelectorAll(".stream").forEach((svg) => observer.observe(svg));
+}
+
+function kickArrowFrame() {
+  if (arrowFrame) return;
+  arrowFrame = requestAnimationFrame(stepFlowArrows);
+}
+
+function stepFlowArrows(now) {
+  arrowFrame = 0;
+  let pending = false;
+  arrowMotions.forEach((motion, el) => {
+    if (!motion.dur) {
+      paintFlowArrow(el, motion.u, motion.u >= 0.5);
+      return;
+    }
+    const t = Math.min(1, (now - motion.start) / motion.dur);
+    // ease-in-out-sine: no abrupt acceleration change, so the arrow's glide
+    // between hops reads as a soft drift rather than a mechanical snap.
+    const eased = -(Math.cos(Math.PI * t) - 1) / 2;
+    motion.u = motion.from + (motion.to - motion.from) * eased;
+    paintFlowArrow(el, motion.u, motion.to > motion.from);
+    if (t < 1) pending = true;
+    else motion.dur = 0;
+  });
+  if (pending) arrowFrame = requestAnimationFrame(stepFlowArrows);
+}
+
+function hopDirections(mode) {
+  if (mode === "return_path" || mode === "server_to_proxy") return { server: "back" };
+  if (mode === "proxy_to_client") return { client: "back" };
+  if (mode === "proxy_to_backend" || mode === "at_backend") return { server: "forward" };
+  if (mode === "handshake" || mode === "client_to_proxy") return { client: "forward" };
+  return { client: "forward", server: "forward" };
+}
+
+function hopPresence(mode) {
+  if (mode === "handshake" || mode === "client_to_proxy") return { client: "live", server: "off" };
+  if (mode === "proxy_to_backend" || mode === "at_backend") return { client: "held", server: "live" };
+  if (mode === "return_path" || mode === "server_to_proxy") return { client: "held", server: "live" };
+  if (mode === "proxy_to_client") return { client: "live", server: "held" };
+  return { client: "live", server: "live" };
+}
+
+let returnPhaseTimer = 0;
+
+function revealHopArrows(mode) {
+  const presence = hopPresence(mode);
+  ["client", "server"].forEach((hop) => {
+    const svg = streamSvg(hop);
+    if (!svg) return;
+    const state = presence[hop];
+    svg.classList.toggle("is-hidden", state === "off");
+    svg.classList.toggle("is-held", state === "held");
+  });
+}
+
+const streamApplied = { client: null, server: null };
+
+function streamSvg(hop) {
+  return hop === "server"
+    ? document.querySelector(".stream-green")
+    : document.querySelector(".stream:not(.stream-green)");
+}
+
+function restartSvgAnim(anim) {
+  const next = anim.cloneNode(true);
+  anim.replaceWith(next);
+}
+
+function applyBinaryFlow(hop, dir) {
+  if (streamApplied[hop] === dir) return;
+  streamApplied[hop] = dir;
+  const svg = streamSvg(hop);
+  if (!svg) return;
+  const along = hop === "client" ? dir === "forward" : dir === "back";
+  svg.classList.toggle("flow-reverse", !along);
+  svg.querySelectorAll("textPath animate").forEach((anim) => {
+    anim.setAttribute("from", along ? "0" : "64");
+    anim.setAttribute("to", along ? "64" : "0");
+    restartSvgAnim(anim);
+  });
+  svg.querySelectorAll("animateMotion").forEach((anim) => {
+    anim.setAttribute("keyPoints", along ? "0;1" : "1;0");
+    anim.setAttribute("keyTimes", "0;1");
+    anim.setAttribute("calcMode", "linear");
+    restartSvgAnim(anim);
+  });
+}
+
+function orientFlowArrows(mode, immediate) {
+  clearTimeout(returnPhaseTimer);
+  const dirs = hopDirections(mode);
+  applyBinaryFlow("client", dirs.client || streamApplied.client || "forward");
+  applyBinaryFlow("server", dirs.server || streamApplied.server || "forward");
+  revealHopArrows(mode);
+  document.querySelectorAll(".flow-arrowhead").forEach((el) => {
+    const dir = dirs[el.dataset.hop];
+    if (!dir) return;
+    const hop = el.dataset.hop;
+    const target = hop === "server"
+      ? (dir === "forward" ? 0 : 1)
+      : (dir === "forward" ? 1 : 0);
+    const motion = arrowMotions.get(el);
+    if (!motion || immediate) {
+      arrowMotions.set(el, { u: target, from: target, to: target, start: 0, dur: 0 });
+      paintFlowArrow(el, target, target >= 0.5);
+      return;
+    }
+    if (Math.abs(motion.to - target) < 0.001 && Math.abs(motion.u - target) < 0.001) return;
+    motion.from = motion.u;
+    motion.to = target;
+    motion.start = performance.now();
+    motion.dur = ARROW_TRAVEL_MS;
+    kickArrowFrame();
+  });
+  if (mode === "return_path") {
+    returnPhaseTimer = setTimeout(() => {
+      if (!topologyEl || topologyEl.dataset.flow !== "return_path") return;
+      // Go through setFlow (not a raw orientFlowArrows call) so the phase
+      // change is a real state transition: dataset.flow, the active-node
+      // highlight, and the status text all switch together to "proxy -> client"
+      // instead of the server -> proxy hop lingering as the reported state.
+      setFlow("proxy_to_client");
+    }, RETURN_PHASE_MS);
+  }
+}
+
 function setFlow(mode) {
   if (!topologyEl) return;
   [nodeClient, nodeProxy, nodeBackend].forEach((n) => n && n.classList.remove("active"));
   topologyEl.dataset.flow = mode;
+  orientFlowArrows(mode, false);
 
   if (mode === "idle") {
     flowStatusEl.textContent = "Idle — send a message to watch packets move.";
@@ -160,10 +417,18 @@ function setFlow(mode) {
     nodeProxy.classList.add("active");
     flowStatusEl.textContent = "PQ Secure Server: handling the message over the PQ session…";
   } else if (mode === "return_path") {
-    nodeClient.classList.add("active");
-    nodeProxy.classList.add("active");
+    // Phase 1 of the reply: server -> proxy only. The client hop is held
+    // (hidden) until phase 2 actually hands off to it, so only highlight
+    // the nodes that are genuinely live right now.
     nodeBackend.classList.add("active");
-    flowStatusEl.textContent = "PQ Server → Proxy → Client: reply on both PQ hops…";
+    nodeProxy.classList.add("active");
+    flowStatusEl.textContent = "PQ Server → Proxy: relaying the encrypted reply…";
+  } else if (mode === "proxy_to_client") {
+    // Phase 2: the server -> proxy hop is now held/hidden and proxy -> client
+    // takes over.
+    nodeProxy.classList.add("active");
+    nodeClient.classList.add("active");
+    flowStatusEl.textContent = "Proxy → Client: delivering the reply on your PQ channel…";
   }
 
   const comms = $("comms-flow");
@@ -189,7 +454,17 @@ function updateStageUI() {
   items.forEach((el) => {
     const rail = el.dataset.rail;
     const idx = RAIL_ORDER.indexOf(rail);
-    const unlocked = [...activated].some((sid) => railForStage(sid) === rail);
+    // A step's own log line can occasionally be missed or arrive out of order
+    // (e.g. "send" is read from the ephemeral client process while
+    // "proxy_relay"/"backend" are tailed from the proxy container's own,
+    // separately-buffered stdout — they don't share a strict wire order).
+    // The pipeline is strictly sequential though, so once we've reached a
+    // later stage every earlier one must already have happened — treat it
+    // as unlocked even if its individual marker never showed up, so a step
+    // can never get stuck locked/grayed-out behind a later one that lit up.
+    const seenDirectly = [...activated].some((sid) => railForStage(sid) === rail);
+    const impliedByLaterStage = currentRailIdx >= 0 && idx <= currentRailIdx;
+    const unlocked = seenDirectly || impliedByLaterStage;
 
     el.classList.remove("active", "done", "locked");
     if (!unlocked) el.classList.add("locked");
@@ -575,7 +850,8 @@ async function sendMessage(explicit) {
     updateCharCount();
   }
   if (pktPlain) {
-    pktPlain.innerHTML = `${escapeHtml(message.slice(0, 18))}${message.length > 18 ? "…" : ""}<small>Plain Text</small>`;
+    const label = pktPlain.querySelector("b");
+    if (label) label.textContent = message.length > 22 ? `${message.slice(0, 22)}…` : message;
   }
 
   resetPipeline({ clearLog: true });
@@ -793,6 +1069,7 @@ function wireInteractions() {
 
   $("comms-send").addEventListener("click", () => {
     const val = $("comms-message").value.trim();
+    showView("demo");
     if (val) sendMessage(val);
     else sendMessage();
   });
@@ -809,6 +1086,8 @@ function wireInteractions() {
   });
 }
 
+orientFlowArrows("idle", true);
+watchStreamScale();
 applyTheme(localStorage.getItem(THEME_KEY) || "dark");
 fillApiSnippet();
 updateCharCount();
